@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: taskbar-bsk supported devices
+    url: https://github.com/bsk-iT/taskbar-bsk#supported-devices
+    about: Check supported device families and connection modes before reporting a device.
