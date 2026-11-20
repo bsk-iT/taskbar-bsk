@@ -472,10 +472,34 @@ unsafe fn place() {
         || cur.top - tr.top != y
         || cur.right - cur.left != width
         || cur.bottom - cur.top != height;
-    let on_top = GetWindow(tray, GW_CHILD) == widget;
+    let on_top = above_content(tray, widget);
     if moved || !on_top || IsWindowVisible(widget) == 0 {
         SetWindowPos(widget, HWND_TOP, x, y, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
+}
+
+/// True when the widget sits above the taskbar's XAML content. Other widgets may stay above it:
+/// demanding the very first slot every tick fights them forever, and a sibling walking the
+/// children while we jump to the top can miss us and draw over the widget.
+unsafe fn above_content(tray: HWND, widget: HWND) -> bool {
+    let bridge = wide("Windows.UI.Composition.DesktopWindowContentBridge");
+    let mut class = [0u16; 64];
+    let mut child = GetWindow(tray, GW_CHILD);
+    // Bounded: siblings re-ordering mid-walk could otherwise send us around in circles.
+    for _ in 0..64 {
+        if child.is_null() {
+            break;
+        }
+        if child == widget {
+            return true;
+        }
+        let len = GetClassNameW(child, class.as_mut_ptr(), class.len() as i32).max(0) as usize;
+        if class[..len] == bridge[..bridge.len() - 1] {
+            return false;
+        }
+        child = GetWindow(child, GW_HWNDNEXT);
+    }
+    false
 }
 
 unsafe fn show_menu(hwnd: HWND) {
